@@ -124,6 +124,7 @@
   .qi.active { background: var(--ink); color: var(--paper); }
   .qi.active .qmeta, .qi.active .handle { color: var(--paper-3); }
   .qi.active .pico { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+  .qi.drag-over { outline: 2px dashed var(--ink); background: var(--paper-3); }
   .handle { color: var(--muted); user-select: none; font-size: 14px; cursor: grab; }
   .pico { width: 32px; height: 32px; border: 1px solid var(--ink); background: var(--paper); display: grid; place-items: center; font-weight: 700; }
   .qname { font-weight: 700; letter-spacing: 0.02em; font-size: 13px; }
@@ -638,6 +639,43 @@ async function apiPut(url, body) {
 const ICONS = { stocks: '$', weather: '☂', photo_frame: '▣' };
 function pluginIcon(name) { return ICONS[name] || '◉'; }
 
+// ─── Drag-to-reorder ────────────────────────────────────────
+let _dragSrc = null;
+
+function addDragHandlers(container, onReorder) {
+  container.addEventListener('dragstart', e => {
+    const qi = e.target.closest('.qi');
+    if (!qi) return;
+    _dragSrc = qi;
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => qi.style.opacity = '0.4', 0);
+  });
+  container.addEventListener('dragend', e => {
+    const qi = e.target.closest('.qi');
+    if (qi) qi.style.opacity = '';
+    container.querySelectorAll('.qi').forEach(el => el.classList.remove('drag-over'));
+  });
+  container.addEventListener('dragover', e => {
+    e.preventDefault();
+    const qi = e.target.closest('.qi');
+    if (!qi || qi === _dragSrc) return;
+    container.querySelectorAll('.qi').forEach(el => el.classList.remove('drag-over'));
+    qi.classList.add('drag-over');
+    // Reorder in DOM
+    const items = [...container.querySelectorAll('.qi')];
+    const srcIdx = items.indexOf(_dragSrc);
+    const tgtIdx = items.indexOf(qi);
+    if (srcIdx < tgtIdx) container.insertBefore(_dragSrc, qi.nextSibling);
+    else container.insertBefore(_dragSrc, qi);
+  });
+  container.addEventListener('drop', e => {
+    e.preventDefault();
+    container.querySelectorAll('.qi').forEach(el => el.classList.remove('drag-over'));
+    const newOrder = [...container.querySelectorAll('.qi[data-plugin]')].map(el => el.dataset.plugin);
+    onReorder(newOrder);
+  });
+}
+
 // ─── System stats polling ───────────────────────────────────
 let _stats = {};
 async function pollStats() {
@@ -775,23 +813,23 @@ async function loadPlugins() {
   const ri = d.rotation_interval || 0;
   $('rotation-mode').textContent = ri > 0 ? 'AUTO · ' + ri + 'S' : 'MANUAL · A◁  B▷';
 
-  // Build plugin list
+  // Build plugin list (plugins page)
   const container = $('plugin-list');
   container.innerHTML = '';
-  // Show all installed, active ones first, inactive ones after
   const ordered = [...active];
   installed.forEach(p => { if (!active.includes(p.name)) ordered.push(p.name); });
 
-  ordered.forEach((name, i) => {
+  ordered.forEach((name) => {
     const isActive = active.includes(name);
-    const isCurrentDisplay = isActive && i === 0;
     const div = document.createElement('div');
-    div.className = 'qi' + (isCurrentDisplay ? ' active' : '');
+    div.className = 'qi';
+    div.dataset.plugin = name;
+    div.draggable = isActive;
     div.innerHTML = `
-      <span class="handle">⋮⋮</span>
+      <span class="handle" style="${isActive ? '' : 'opacity:0.3;cursor:default'}">⋮⋮</span>
       <div class="pico">${pluginIcon(name)}</div>
       <div>
-        <div class="qname">${name.toUpperCase().replace('_', ' ')}</div>
+        <div class="qname">${name.toUpperCase().replace(/_/g, ' ')}</div>
         <div class="qmeta">${isActive ? 'In rotation' : 'Disabled'}</div>
       </div>
       <div class="tog ${isActive ? '' : 'off'}" data-plugin="${name}"></div>
@@ -800,23 +838,38 @@ async function loadPlugins() {
     container.appendChild(div);
   });
 
+  addDragHandlers(container, async newOrder => {
+    const currentActive = _pluginData.active || [];
+    const reordered = newOrder.filter(n => currentActive.includes(n));
+    currentActive.forEach(n => { if (!reordered.includes(n)) reordered.push(n); });
+    const r = await apiPut('/api/plugins/active', { active: reordered });
+    if (r && r.ok) { toast('Order saved'); _pluginData.active = reordered; }
+  });
+
   // Home queue (active only)
   const hq = $('home-queue');
   hq.innerHTML = '';
   active.forEach((name, i) => {
     const div = document.createElement('div');
     div.className = 'qi' + (i === 0 ? ' active' : '');
+    div.dataset.plugin = name;
+    div.draggable = true;
     div.innerHTML = `
       <span class="handle">⋮⋮</span>
       <div class="pico">${pluginIcon(name)}</div>
       <div>
-        <div class="qname">${name.toUpperCase().replace('_', ' ')}</div>
+        <div class="qname">${name.toUpperCase().replace(/_/g, ' ')}</div>
         <div class="qmeta">${i === 0 ? 'On screen' : 'Queued'}</div>
       </div>
       <span class="badge ${i === 0 ? 'on' : ''}">${i === 0 ? 'LIVE' : 'QUEUED'}</span>
-      <div class="tog" data-plugin="${name}"></div>
+      <button class="btn sm" title="Switch to this plugin now" onclick="triggerPlugin('${name}')">▶</button>
     `;
     hq.appendChild(div);
+  });
+
+  addDragHandlers(hq, async newOrder => {
+    const r = await apiPut('/api/plugins/active', { active: newOrder });
+    if (r && r.ok) { toast('Order saved'); _pluginData.active = newOrder; loadPlugins(); }
   });
 }
 
@@ -836,6 +889,17 @@ document.addEventListener('click', e => {
     if (r && r.ok) { toast(name + ' toggled'); loadPlugins(); }
   });
 });
+
+async function triggerPlugin(name) {
+  toast('Switching to ' + name.replace(/_/g, ' ') + '…');
+  const r = await apiPost('/api/display/switch', { plugin: name });
+  if (r && r.ok) {
+    toast('Switched to ' + name.replace(/_/g, ' ') + ' — e-ink updating…');
+    setTimeout(loadPlugins, 2000);
+  } else {
+    toast('Failed: ' + ((r && r.error) || 'service not running'));
+  }
+}
 
 async function showPluginDetail(name) {
   _currentPlugin = name;

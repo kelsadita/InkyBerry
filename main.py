@@ -329,9 +329,30 @@ class InkyBerry:
             logger.info("Shutting down...")
             self._running = False
 
-        # SIGUSR1 = web dashboard requests a refresh
+        # SIGUSR1 = web dashboard requests a refresh or plugin switch
         def on_refresh_signal(sig, frame):
-            logger.info("SIGUSR1 received — web-triggered refresh")
+            import json as _json
+            cmd_file = "/tmp/inkyberry_cmd.json"
+            cmd = {}
+            try:
+                if os.path.exists(cmd_file):
+                    with open(cmd_file) as f:
+                        cmd = _json.load(f)
+                    os.remove(cmd_file)
+            except Exception:
+                pass
+
+            if cmd.get("action") == "switch" and "plugin" in cmd:
+                target = cmd["plugin"]
+                for i, p in enumerate(self.plugins):
+                    if p.name.lower().replace(" ", "_") == target.lower().replace(" ", "_"):
+                        self.current_plugin_index = i
+                        logger.info(f"SIGUSR1 — switching to plugin: {p.name}")
+                        break
+                else:
+                    logger.warning(f"SIGUSR1 switch: plugin '{target}' not found")
+
+            logger.info("SIGUSR1 — refreshing display")
             t = threading.Thread(target=self._refresh_and_render, daemon=True)
             t.start()
 

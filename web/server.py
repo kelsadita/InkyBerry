@@ -238,6 +238,27 @@ def api_refresh_display():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/display/switch", methods=["POST"])
+def api_switch_plugin():
+    """Switch to a specific plugin and refresh the display."""
+    data = request.get_json()
+    plugin = data.get("plugin", "")
+    if not plugin:
+        return jsonify({"error": "No plugin specified"}), 400
+    try:
+        pid = run_cmd("pgrep -f 'python.*main.py'")
+        if not pid:
+            return jsonify({"error": "InkyBerry process not found"}), 404
+        # Write command file before sending signal
+        import json as _json
+        with open("/tmp/inkyberry_cmd.json", "w") as f:
+            _json.dump({"action": "switch", "plugin": plugin}, f)
+        os.kill(int(pid.split()[0]), signal.SIGUSR1)
+        return jsonify({"ok": True, "plugin": plugin})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/display/settings", methods=["GET"])
 def api_display_settings():
     cfg = load_config()
