@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# InkyBerry runtime files
+screenshot.png
+preview.png
+photos/
+fonts/weathericons-regular-webfont.ttf
+
+# Keep fonts dir but not the downloaded font (installed via install_fonts.sh)
+!fonts/.gitkeep
+
+# Config with personal info — users should copy from config.yaml
+# (keeping config.yaml in repo as a template is fine)
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
