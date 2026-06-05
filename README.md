@@ -6,10 +6,11 @@ A custom e-ink display manager for **Raspberry Pi Zero 2 W** and the **Pimoroni 
 
 - **Plugin system** — modular architecture, easy to add new displays
 - **4-button navigation** — physical buttons for switching plugins, refreshing data, and plugin-specific actions
+- **Web dashboard** — local-network UI to configure plugins, manage photos, view a live preview, control the display, and monitor the Pi (see [Web Dashboard](#web-dashboard))
 - **Button debouncing** — presses during e-ink refresh (~45s) are dropped, no input queue buildup
 - **Dithered grey headers** — TRMNL-inspired compact UI style
 - **Screenshot mode** — render any plugin to PNG for debugging without hardware
-- **Systemd service** — runs on boot, auto-restarts on failure
+- **Systemd services** — display manager and web dashboard run on boot, auto-restart on failure
 
 ## Plugins
 
@@ -57,6 +58,31 @@ A custom e-ink display manager for **Raspberry Pi Zero 2 W** and the **Pimoroni 
 
 Buttons are handled per-plugin. Each plugin can override C and D for custom behavior while A and B always navigate between plugins.
 
+## Web Dashboard
+
+A lightweight Flask dashboard for configuring and controlling InkyBerry from any browser on your local network — no need to SSH in or edit `config.yaml` by hand. It's designed to run comfortably on the Pi Zero 2 W's 512MB of RAM.
+
+`setup.sh` installs it as its own systemd service (`inkyberry-web`), so once setup completes you can open:
+
+```
+http://inkyberry.local:5000
+```
+
+Pages:
+
+- **Home** — live PNG preview of what's on the panel, with a download button and one-click refresh. Simulate any of the A/B/C/D button presses remotely.
+- **Plugins** — enable/disable and reorder active plugins, edit per-plugin settings, and switch the display to a specific plugin.
+- **Photos** — upload, browse (with thumbnails), and delete photo-frame images; trigger a rescan.
+- **Schedule** — define time-based rules for the display.
+- **Display** — adjust resolution, rotation, and color saturation.
+- **Buttons** — remap the GPIO pin assignments for the four buttons.
+- **System** — live stats (CPU, memory, temperature, disk, uptime, IP), start/stop/restart the display service, and reboot or shut down the Pi.
+- **Logs** — live-streaming `journalctl` output via Server-Sent Events, with level filtering.
+
+The dashboard talks to the running display process over signals (`SIGUSR1`) and a small command file, so refreshes, plugin switches, and button presses take effect immediately. Service control, reboot, and shutdown rely on the passwordless sudoers rules that `setup.sh` installs (`/etc/sudoers.d/inkyberry`).
+
+> **Note:** the dashboard binds to `0.0.0.0:5000` and has no authentication — only expose it on a trusted local network, not the public internet.
+
 ## Quick Start
 
 ### 1. Clone the repo
@@ -75,7 +101,7 @@ chmod +x setup.sh install_fonts.sh
 ./install_fonts.sh
 ```
 
-This installs all dependencies, sets up the Python virtual environment, installs the weather icons font, and creates a systemd service.
+This installs all dependencies, sets up the Python virtual environment, installs the weather icons font, and creates two systemd services (`inkyberry` for the display and `inkyberry-web` for the dashboard).
 
 ### 3. Install HEIC/HEIF support (optional, for iPhone photos)
 
@@ -95,8 +121,11 @@ Customize your stock tickers and preferences. Weather location is auto-detected 
 ### 5. Start InkyBerry
 
 ```bash
-sudo systemctl start inkyberry
+sudo systemctl start inkyberry        # the e-ink display manager
+sudo systemctl start inkyberry-web    # the web dashboard
 ```
+
+Then open **http://inkyberry.local:5000** in a browser on the same network to manage everything from the [web dashboard](#web-dashboard).
 
 ## Configuration
 
@@ -161,6 +190,8 @@ Saves to `~/inkyberry/screenshot.png`.
 
 ## Service Management
 
+Display manager:
+
 ```bash
 sudo systemctl start inkyberry      # start
 sudo systemctl stop inkyberry       # stop (required before manual runs)
@@ -169,7 +200,17 @@ sudo systemctl status inkyberry     # check status
 journalctl -u inkyberry -f          # live logs
 ```
 
-**Important:** Always stop the service before running manually, otherwise you'll get a `GPIO busy` error.
+Web dashboard:
+
+```bash
+sudo systemctl start inkyberry-web      # start
+sudo systemctl stop inkyberry-web       # stop
+sudo systemctl restart inkyberry-web    # restart
+sudo systemctl status inkyberry-web     # check status
+journalctl -u inkyberry-web -f          # live logs
+```
+
+**Important:** Always stop the `inkyberry` service before running the display manually, otherwise you'll get a `GPIO busy` error.
 
 ## Project Structure
 
@@ -184,6 +225,10 @@ inkyberry/
 ├── install_fonts.sh     # Downloads weather icons font
 ├── fonts/               # DejaVu Sans + Weather Icons
 ├── photos/              # Photo frame images (add your own)
+├── web/                 # Web dashboard
+│   ├── server.py        # Flask API server (config, plugins, photos, system, logs)
+│   └── static/
+│       └── index.html   # Single-page dashboard UI
 └── plugins/
     ├── base_plugin.py   # Abstract base class
     ├── stocks/
@@ -248,6 +293,7 @@ plugins:
 - [yfinance](https://github.com/ranaroussi/yfinance) — stock data
 - [requests](https://docs.python-requests.org/) — HTTP client (weather API)
 - [gpiozero](https://gpiozero.readthedocs.io/) — GPIO button handling
+- [Flask](https://flask.palletsprojects.com/) — web dashboard server
 - [PyYAML](https://pyyaml.org/) — config parsing
 - [pytz](https://pytz.sourceforge.net/) — timezone handling
 - [pillow-heif](https://github.com/bigcat88/pillow_heif) — HEIC/HEIF support (optional)
