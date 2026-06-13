@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import requests
 from datetime import datetime
 from plugins.base_plugin import BasePlugin
-from display import BLACK, WHITE
+from display import BLACK, WHITE, FONT_MERRIWEATHER, FONT_ATKINSON
 
 # Fallback quotes in case the API is unreachable
 FALLBACK_QUOTES = [
@@ -117,9 +117,9 @@ class Plugin(BasePlugin):
             font_size = 22
             author_font_size = 15
 
-        font = self.display.get_font(font_size, bold=True)
-        author_font = self.display.get_font(author_font_size, bold=True)
-        quote_font = self.display.get_font(font_size + 6, bold=True)  # for the " marks
+        font = self.display.get_font(font_size, bold=True, family=FONT_MERRIWEATHER)
+        author_font = self.display.get_font(author_font_size, bold=True, family=FONT_MERRIWEATHER)
+        quote_font = self.display.get_font(font_size + 6, bold=True, family=FONT_MERRIWEATHER)
 
         # ── Wrap the quote text to fit ──
         lines = self._wrap_quote(self._quote_text, font, usable_w)
@@ -192,7 +192,7 @@ class Plugin(BasePlugin):
         draw.text((author_x, author_y), author_text, fill=BLACK, font=author_font)
 
         # ── Bottom hint ──
-        hint_font = self.display.get_font(12, bold=True)
+        hint_font = self.display.get_font(12, bold=True, family=FONT_ATKINSON)
         hint_text = "Press C for a new quote"
         hint_bbox = hint_font.getbbox(hint_text)
         hint_w = hint_bbox[2] - hint_bbox[0]

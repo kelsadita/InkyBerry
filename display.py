@@ -29,6 +29,21 @@ COLOR_NAMES = {
 # Font directory
 FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
 
+# Font families available on the system
+# Each maps to (Regular_filename, Bold_filename)
+FONT_FAMILIES = {
+    "DejaVuSans":           ("DejaVuSans.ttf",           "DejaVuSans-Bold.ttf"),
+    "AtkinsonHyperlegible": ("AtkinsonHyperlegible-Regular.otf", "AtkinsonHyperlegible-Bold.otf"),
+    "Inter":                ("Inter-Regular.ttf",         "Inter-Bold.ttf"),
+    "Merriweather":         ("Merriweather-Regular.ttf",  "Merriweather-Bold.ttf"),
+}
+
+# Convenience constants
+FONT_DEJAVU      = "DejaVuSans"
+FONT_ATKINSON    = "AtkinsonHyperlegible"
+FONT_INTER        = "Inter"
+FONT_MERRIWEATHER = "Merriweather"
+
 
 class Display:
     """Manages the Inky Impression display and provides drawing utilities."""
@@ -58,17 +73,34 @@ class Display:
             logger.warning("Running in headless/preview mode")
             self.inky = None
 
-    def get_font(self, size=20, bold=False):
-        """Load a DejaVu font at the given size. Cached."""
-        key = (size, bold)
+    def get_font(self, size=20, bold=False, family=None):
+        """Load a font at the given size. Cached by (family, size, bold).
+
+        Args:
+            size: font size in points
+            bold: True for bold weight
+            family: font family name from FONT_FAMILIES (default: DejaVuSans)
+        """
+        if family is None:
+            family = FONT_DEJAVU
+
+        key = (family, size, bold)
         if key not in self._fonts:
-            font_name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
-            font_path = os.path.join(FONT_DIR, font_name)
+            if family in FONT_FAMILIES:
+                reg_file, bold_file = FONT_FAMILIES[family]
+                file_name = bold_file if bold else reg_file
+            else:
+                fallback = FONT_FAMILIES[FONT_DEJAVU]
+                file_name = fallback[1] if bold else fallback[0]
+                logger.warning(f"Unknown font family '{family}', falling back to DejaVuSans")
+
+            font_path = os.path.join(FONT_DIR, file_name)
             if not os.path.exists(font_path):
-                # Fallback to system fonts
-                font_path = f"/usr/share/fonts/truetype/dejavu/{font_name}"
+                # DejaVu fallback: also check system path
+                if family == FONT_DEJAVU:
+                    font_path = f"/usr/share/fonts/truetype/dejavu/{file_name}"
             if not os.path.exists(font_path):
-                logger.warning(f"Font not found: {font_path}, using default")
+                logger.warning(f"Font not found: {file_name}, using default")
                 self._fonts[key] = ImageFont.load_default()
             else:
                 self._fonts[key] = ImageFont.truetype(font_path, size)
