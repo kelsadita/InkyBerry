@@ -15,7 +15,9 @@ plugins:
     - stocks
     - weather
     - photo_frame
-  rotation_interval: 0  # 0 = manual only (use buttons), or seconds between auto-rotation
+    - daily_quote
+  rotation_interval: 0  # seconds between auto-rotation; 0 = manual (buttons only).
+                        # Toggle live from the web dashboard (Plugins page) — no restart needed.
 
 buttons:
   # GPIO pin assignments for Inky Impression 7.3"
@@ -43,6 +45,10 @@ photo_frame:
   directory: "~/inkyberry/photos"
   interval: 300          # seconds between auto-advance
   shuffle: true
+
+daily_quote:
+  refresh_interval: 86400  # fetch a new quote once a day
+  # category: wisdom       # optional: filter by tag (inspirational, wisdom, love, etc.)
 
 schedule:
   enabled: false

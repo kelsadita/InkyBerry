@@ -9,6 +9,7 @@ import sys
 import time
 import logging
 import importlib
+import importlib.util
 import threading
 import signal
 import yaml
@@ -44,6 +45,7 @@ class InkyBerry:
         self._rendering = threading.Event()  # set while e-ink is updating
         self._last_refresh = {}
         self._rotation_timer = None
+        self._last_rotate = time.monotonic()  # for auto-rotation timing
 
         # Load plugins
         self._load_plugins()
@@ -132,6 +134,7 @@ class InkyBerry:
                 self.current_plugin_index = (
                     (self.current_plugin_index - 1) % len(self.plugins)
                 )
+                self._last_rotate = time.monotonic()  # defer next auto-rotate
                 logger.info(f"Switched to: {self.plugins[self.current_plugin_index].name}")
                 self._refresh_and_render()
 
@@ -140,6 +143,7 @@ class InkyBerry:
                 self.current_plugin_index = (
                     (self.current_plugin_index + 1) % len(self.plugins)
                 )
+                self._last_rotate = time.monotonic()  # defer next auto-rotate
                 logger.info(f"Switched to: {self.plugins[self.current_plugin_index].name}")
                 self._refresh_and_render()
 
@@ -277,16 +281,43 @@ class InkyBerry:
             self._rendering.clear()
             logger.info("Display render complete — buttons re-enabled")
 
+    def _read_rotation_interval(self):
+        """Read plugins.rotation_interval fresh from config.yaml.
+
+        Read from disk (not the cached self.config) so changes made via the
+        web dashboard apply live, without restarting the service. Returns 0
+        (auto-rotation disabled) on any error.
+        """
+        try:
+            with open(os.path.join(ROOT, "config.yaml")) as f:
+                cfg = yaml.safe_load(f) or {}
+            return int(cfg.get("plugins", {}).get("rotation_interval", 0) or 0)
+        except Exception:
+            return 0
+
     def _schedule_rotation(self):
-        """Auto-rotate plugins on a timer."""
-        interval = self.config.get("plugins", {}).get("rotation_interval", 0)
-        if interval <= 0:
-            return
+        """Auto-rotate plugins on a timer.
+
+        The thread always runs; the interval is re-read from config each tick
+        so the dashboard can enable, disable, or change it on the fly. A value
+        of <= 0 means auto-rotation is off (manual button navigation only).
+        """
+        self._last_rotate = time.monotonic()
 
         def rotate():
             while self._running:
-                time.sleep(interval)
-                if self._running and self.plugins:
+                time.sleep(5)  # poll cadence; interval is checked below
+                if not self._running or not self.plugins:
+                    continue
+
+                interval = self._read_rotation_interval()
+                if interval <= 0:
+                    # Disabled — keep the timer fresh so re-enabling doesn't
+                    # immediately fire a rotation from accumulated elapsed time.
+                    self._last_rotate = time.monotonic()
+                    continue
+
+                if (time.monotonic() - self._last_rotate) >= interval:
                     self.current_plugin_index = (
                         (self.current_plugin_index + 1) % len(self.plugins)
                     )
@@ -295,6 +326,7 @@ class InkyBerry:
                         f"{self.plugins[self.current_plugin_index].name}"
                     )
                     self._refresh_and_render()
+                    self._last_rotate = time.monotonic()
 
         self._rotation_timer = threading.Thread(target=rotate, daemon=True)
         self._rotation_timer.start()
@@ -371,6 +403,11 @@ class InkyBerry:
             elif cmd.get("action") == "next":
                 self.current_plugin_index = (self.current_plugin_index + 1) % len(self.plugins)
                 logger.info(f"SIGUSR1 — next plugin: {self.plugins[self.current_plugin_index].name}")
+
+            # A dashboard-driven switch/prev/next is a manual navigation —
+            # defer the next auto-rotate so it doesn't fire right after.
+            if cmd.get("action") in ("switch", "prev", "next"):
+                self._last_rotate = time.monotonic()
 
             logger.info("SIGUSR1 — refreshing display")
             t = threading.Thread(target=self._refresh_and_render, daemon=True)
@@ -451,10 +488,12 @@ if __name__ == "__main__":
                         for px in range(img.width):
                             idx = pixels[px, py]
                             rgb_pixels[px, py] = palette_rgb.get(idx, (128, 128, 128))
-                    rgb_img.save("/home/pi/inkyberry/screenshot.png")
+                    ss_path = os.path.join(ROOT, "screenshot.png")
+                    rgb_img.save(ss_path)
                 else:
-                    img.save("/home/pi/inkyberry/screenshot.png")
-                logger.info("Screenshot saved to ~/inkyberry/screenshot.png")
+                    ss_path = os.path.join(ROOT, "screenshot.png")
+                    img.save(ss_path)
+                logger.info(f"Screenshot saved to {ss_path}")
         sys.exit(0)
 
     app.run()
