@@ -9,6 +9,10 @@ display:
 
 # Timezone is always read from the Pi's system clock.
 # To change it: sudo timedatectl set-timezone America/New_York
+#
+# Available fonts:
+# DejaVuSans, AtkinsonHyperlegible, Inter, Merriweather,
+# IBMPlexSans, IBMPlexSerif, LibreBaskerville, RobotoSlab
 
 plugins:
   active:
@@ -32,6 +36,7 @@ stocks:
     - [AAPL, MSFT, AMZN, GOOG]
     - [META, NFLX, INTC, AMD]
   refresh_interval: 900  # seconds (15 min)
+  font: Inter
 
 weather:
   # Location auto-detected from IP. To override, uncomment and set:
@@ -40,6 +45,7 @@ weather:
   # location_name: "New York, NY"
   units: metric          # imperial or metric (D button toggles)
   refresh_interval: 1800 # seconds (30 min)
+  font: AtkinsonHyperlegible
 
 photo_frame:
   directory: "~/inkyberry/photos"
@@ -49,6 +55,7 @@ photo_frame:
 daily_quote:
   refresh_interval: 86400  # fetch a new quote once a day
   # category: wisdom       # optional: filter by tag (inspirational, wisdom, love, etc.)
+  font: LibreBaskerville
 
 schedule:
   enabled: false

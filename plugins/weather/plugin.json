@@ -1,0 +1,54 @@
+{
+  "description": "Current weather, 24hr temperature graph, and 7-day forecast. Data from Open-Meteo.",
+  "fields": [
+    {
+      "key": "font",
+      "label": "Font",
+      "type": "select",
+      "options": ["DejaVuSans", "AtkinsonHyperlegible", "Inter", "IBMPlexSans", "Merriweather", "LibreBaskerville", "IBMPlexSerif", "RobotoSlab"],
+      "default": "DejaVuSans",
+      "help": "Font family for weather text."
+    },
+    {
+      "key": "units",
+      "label": "Units",
+      "type": "select",
+      "options": ["metric", "imperial"],
+      "default": "metric",
+      "help": "Temperature unit system (D button toggles)."
+    },
+    {
+      "key": "refresh_interval",
+      "label": "Refresh",
+      "type": "number",
+      "unit": "seconds",
+      "min": 300,
+      "step": 300,
+      "default": 1800,
+      "help": "How often to fetch fresh data (30 min = 1800)."
+    },
+    {
+      "key": "latitude",
+      "label": "Latitude",
+      "type": "number",
+      "optional": true,
+      "step": 0.01,
+      "help": "Override auto-detected location. Set both lat and lon."
+    },
+    {
+      "key": "longitude",
+      "label": "Longitude",
+      "type": "number",
+      "optional": true,
+      "step": 0.01,
+      "help": "Override auto-detected location. Set both lat and lon."
+    },
+    {
+      "key": "location_name",
+      "label": "Location Name",
+      "type": "text",
+      "optional": true,
+      "help": "Custom label to show in the header (e.g. 'New York, NY')."
+    }
+  ]
+}

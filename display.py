@@ -36,13 +36,21 @@ FONT_FAMILIES = {
     "AtkinsonHyperlegible": ("AtkinsonHyperlegible-Regular.otf", "AtkinsonHyperlegible-Bold.otf"),
     "Inter":                ("Inter-Regular.ttf",         "Inter-Bold.ttf"),
     "Merriweather":         ("Merriweather-Regular.ttf",  "Merriweather-Bold.ttf"),
+    "IBMPlexSans":          ("IBMPlexSans-Regular.ttf",   "IBMPlexSans-Bold.ttf"),
+    "IBMPlexSerif":         ("IBMPlexSerif-Regular.ttf",  "IBMPlexSerif-Bold.ttf"),
+    "LibreBaskerville":     ("LibreBaskerville-Regular.ttf", "LibreBaskerville-Bold.ttf"),
+    "RobotoSlab":           ("RobotoSlab-Regular.ttf",    "RobotoSlab-Bold.ttf"),
 }
 
 # Convenience constants
-FONT_DEJAVU      = "DejaVuSans"
-FONT_ATKINSON    = "AtkinsonHyperlegible"
-FONT_INTER        = "Inter"
-FONT_MERRIWEATHER = "Merriweather"
+FONT_DEJAVU          = "DejaVuSans"
+FONT_ATKINSON        = "AtkinsonHyperlegible"
+FONT_INTER           = "Inter"
+FONT_MERRIWEATHER    = "Merriweather"
+FONT_IBM_PLEX_SANS   = "IBMPlexSans"
+FONT_IBM_PLEX_SERIF  = "IBMPlexSerif"
+FONT_LIBRE_BASKERVILLE = "LibreBaskerville"
+FONT_ROBOTO_SLAB     = "RobotoSlab"
 
 
 class Display:

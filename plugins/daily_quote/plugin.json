@@ -1,0 +1,30 @@
+{
+  "description": "A daily inspirational quote on your e-ink display. Fetches live quotes from DummyJSON and ZenQuotes, with Quotable as a tagged backup.",
+  "fields": [
+    {
+      "key": "font",
+      "label": "Font",
+      "type": "select",
+      "options": ["Merriweather", "LibreBaskerville", "IBMPlexSerif", "RobotoSlab", "AtkinsonHyperlegible", "Inter", "IBMPlexSans", "DejaVuSans"],
+      "default": "Merriweather",
+      "help": "Font family for the quote text."
+    },
+    {
+      "key": "refresh_interval",
+      "label": "Refresh",
+      "type": "number",
+      "unit": "seconds",
+      "min": 300,
+      "step": 3600,
+      "default": 86400,
+      "help": "How often to fetch a new quote (daily = 86400)."
+    },
+    {
+      "key": "category",
+      "label": "Category",
+      "type": "text",
+      "optional": true,
+      "help": "Filter by tag when Quotable is available, e.g. wisdom, inspirational, love. Leave blank for any."
+    }
+  ]
+}

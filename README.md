@@ -101,7 +101,7 @@ chmod +x setup.sh install_fonts.sh
 ./install_fonts.sh
 ```
 
-This installs all dependencies, sets up the Python virtual environment, installs the weather icons font, and creates two systemd services (`inkyberry` for the display and `inkyberry-web` for the dashboard).
+This installs all dependencies, sets up the Python virtual environment, installs the weather icons font, and creates two systemd services (`inkyberry` for the display and `inkyberry-web` for the dashboard). Display text fonts live in `fonts/` and are selectable from plugin settings.
 
 ### 3. Install HEIC/HEIF support (optional, for iPhone photos)
 
@@ -223,7 +223,7 @@ inkyberry/
 ├── geolocation.py       # IP-based location auto-detect with config fallback
 ├── setup.sh             # One-command installer
 ├── install_fonts.sh     # Downloads weather icons font
-├── fonts/               # DejaVu Sans + Weather Icons
+├── fonts/               # Display text fonts + Weather Icons
 ├── photos/              # Photo frame images (add your own)
 ├── web/                 # Web dashboard
 │   ├── server.py        # Flask API server (config, plugins, photos, system, logs)

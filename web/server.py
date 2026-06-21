@@ -165,6 +165,27 @@ def api_set_active_plugins():
     return jsonify({"error": "Failed to save"}), 500
 
 
+def font_families():
+    """Return configured display font family names."""
+    sys.path.insert(0, ROOT)
+    try:
+        from display import FONT_FAMILIES
+        return list(FONT_FAMILIES.keys())
+    except Exception:
+        return ["DejaVuSans", "AtkinsonHyperlegible", "Inter", "Merriweather"]
+
+
+def inject_font_options(schema):
+    """Keep plugin font dropdowns in sync with display.py."""
+    if not schema or not isinstance(schema.get("fields"), list):
+        return schema
+    fonts = font_families()
+    for field in schema["fields"]:
+        if field.get("key") == "font" and field.get("type") == "select":
+            field["options"] = fonts
+    return schema
+
+
 @app.route("/api/plugins/<name>/settings", methods=["GET"])
 def api_plugin_settings(name):
     """Get per-plugin settings from config.yaml."""
@@ -176,7 +197,7 @@ def api_plugin_settings(name):
     if os.path.isfile(pjson_path):
         try:
             with open(pjson_path) as f:
-                schema = json.load(f)
+                schema = inject_font_options(json.load(f))
         except Exception:
             pass
     return jsonify({"settings": settings, "schema": schema})

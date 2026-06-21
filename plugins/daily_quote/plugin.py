@@ -1,7 +1,7 @@
 """
 InkyBerry Daily Quote Plugin
 Displays a quote of the day with author attribution.
-Fetches from the Quotable API (free, no key).
+Fetches live quotes from DummyJSON and ZenQuotes, with Quotable as a tagged backup.
 
 Button mapping:
   C — fetch a new quote
@@ -43,35 +43,79 @@ class Plugin(BasePlugin):
         quote_cfg = config.get("daily_quote", {})
         self.refresh_interval = quote_cfg.get("refresh_interval", 86400)  # daily
         self.category = quote_cfg.get("category", None)  # e.g. "inspirational", "wisdom"
+        self.font_family = quote_cfg.get("font", FONT_MERRIWEATHER)
         self._quote_text = None
         self._quote_author = None
 
     def update_data(self):
-        """Fetch a random quote from the Quotable API."""
-        try:
-            url = "https://api.quotable.io/random"
-            params = {"maxLength": 200}
-            if self.category:
-                params["tags"] = self.category
+        """Fetch a random quote from a live quote API."""
+        errors = []
 
-            resp = requests.get(url, params=params, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
+        if self.category:
+            sources = (self._fetch_quotable, self._fetch_dummyjson, self._fetch_zenquotes)
+        else:
+            # Quotable currently serves an expired TLS certificate on api.quotable.io.
+            # Use no-key live APIs first so a working network does not look like fixed rotation.
+            sources = (self._fetch_dummyjson, self._fetch_zenquotes, self._fetch_quotable)
 
-            self._quote_text = data.get("content", "").strip()
-            self._quote_author = data.get("author", "Unknown").strip()
-            self.logger.info(
-                f"Fetched quote by {self._quote_author}: "
-                f"\"{self._quote_text[:60]}...\""
-            )
+        for fetch_quote in sources:
+            try:
+                self._quote_text, self._quote_author = fetch_quote()
+                self.logger.info(
+                    f"Fetched quote by {self._quote_author}: "
+                    f"\"{self._quote_text[:60]}...\""
+                )
+                return
+            except Exception as e:
+                errors.append(f"{fetch_quote.__name__}: {e}")
 
-        except Exception as e:
-            self.logger.warning(f"Quote API failed: {e}, using fallback")
-            import random
-            self._quote_text, self._quote_author = random.choice(FALLBACK_QUOTES)
+        self.logger.warning(
+            "Quote APIs failed (%s), using fallback", "; ".join(errors)
+        )
+        import random
+        self._quote_text, self._quote_author = random.choice(FALLBACK_QUOTES)
 
-        # Trigger a re-render with the new quote
-        # (done automatically by the refresh loop when this is the active plugin)
+    def _fetch_dummyjson(self):
+        """Return (quote, author) from DummyJSON."""
+        resp = requests.get("https://dummyjson.com/quotes/random", timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+
+        quote = data.get("quote", "").strip()
+        author = data.get("author", "Unknown").strip() or "Unknown"
+        if not quote:
+            raise ValueError("DummyJSON returned no quote")
+        return quote, author
+
+    def _fetch_zenquotes(self):
+        """Return (quote, author) from ZenQuotes."""
+        resp = requests.get("https://zenquotes.io/api/random", timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        if not isinstance(data, list) or not data:
+            raise ValueError("unexpected ZenQuotes response")
+
+        quote = data[0].get("q", "").strip()
+        author = data[0].get("a", "Unknown").strip() or "Unknown"
+        if not quote or quote.lower().startswith("too many requests"):
+            raise ValueError("ZenQuotes returned no quote")
+        return quote, author
+
+    def _fetch_quotable(self):
+        """Return (quote, author) from Quotable."""
+        params = {"maxLength": 200}
+        if self.category:
+            params["tags"] = self.category
+
+        resp = requests.get("https://api.quotable.io/random", params=params, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+
+        quote = data.get("content", "").strip()
+        author = data.get("author", "Unknown").strip() or "Unknown"
+        if not quote:
+            raise ValueError("Quotable returned no quote")
+        return quote, author
 
     def on_button(self, button):
         """C = fetch a new quote."""
@@ -117,9 +161,9 @@ class Plugin(BasePlugin):
             font_size = 22
             author_font_size = 15
 
-        font = self.display.get_font(font_size, bold=True, family=FONT_MERRIWEATHER)
-        author_font = self.display.get_font(author_font_size, bold=True, family=FONT_MERRIWEATHER)
-        quote_font = self.display.get_font(font_size + 6, bold=True, family=FONT_MERRIWEATHER)
+        font = self.display.get_font(font_size, bold=True, family=self.font_family)
+        author_font = self.display.get_font(author_font_size, bold=True, family=self.font_family)
+        quote_font = self.display.get_font(font_size + 6, bold=True, family=self.font_family)
 
         # ── Wrap the quote text to fit ──
         lines = self._wrap_quote(self._quote_text, font, usable_w)

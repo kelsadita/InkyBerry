@@ -1,0 +1,29 @@
+{
+  "description": "Track stock prices with intraday sparkline charts. Data from Yahoo Finance.",
+  "fields": [
+    {
+      "key": "font",
+      "label": "Font",
+      "type": "select",
+      "options": ["Inter", "IBMPlexSans", "AtkinsonHyperlegible", "DejaVuSans", "RobotoSlab", "Merriweather", "LibreBaskerville", "IBMPlexSerif"],
+      "default": "Inter",
+      "help": "Font family for the stock data display."
+    },
+    {
+      "key": "ticker_groups",
+      "label": "Ticker Groups",
+      "type": "ticker_groups",
+      "help": "Groups of stock symbols. D button cycles between groups."
+    },
+    {
+      "key": "refresh_interval",
+      "label": "Refresh",
+      "type": "number",
+      "unit": "seconds",
+      "min": 60,
+      "step": 60,
+      "default": 900,
+      "help": "How often to fetch fresh prices (15 min = 900)."
+    }
+  ]
+}
